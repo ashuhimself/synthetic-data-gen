@@ -1,0 +1,17 @@
+.venv/
+datagen_extractor.egg-info/*
+src/datagen_extractor/__pycache__/*
+src/datagen_extractor.egg-info/*
+__pycache__/
+*.pyc
+.pytest_cache/
+run_output/
+run_credit/
+.coverage
+input/
+samples/
+*.md
+output/
+.ruff_cache/
+.venv/
+tests/__pycache__/
