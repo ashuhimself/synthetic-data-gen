@@ -10,8 +10,11 @@ run_credit/
 .coverage
 input/
 samples/
-*.md
 output/
 .ruff_cache/
 .venv/
 tests/__pycache__/
+AGENTS.md
+CLAUDE.md
+datagen-extract-requirements.md
+requirements-review.md
