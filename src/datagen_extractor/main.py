@@ -83,13 +83,7 @@ def extract(
         try:
             schemas = extractor.extract_file(source)
         except ExtractionExhaustedError as exc:
-            console.print(
-                Panel(
-                    str(exc),
-                    title="[red]Extraction Failed[/red]",
-                    border_style="red",
-                )
-            )
+            _report_extraction_failure(exc, output)
             raise typer.Exit(code=1)
         except CopilotCLIError as exc:
             console.print(f"[red]Copilot CLI error:[/red] {exc}")
@@ -202,7 +196,8 @@ def extract_all(
                         f"  [green]✓[/green] {md_file.name} → {schema.table_name}.yaml ({len(schema.fields)} fields)"
                     )
             except ExtractionExhaustedError as exc:
-                console.print(f"  [red]✗[/red] {md_file.name} — exhausted {exc}")
+                console.print(f"  [red]✗[/red] {md_file.name} — exhausted retries")
+                _report_extraction_failure(exc, output)
                 raise typer.Exit(code=1)
             except CopilotCLIError as exc:
                 console.print(f"  [red]✗[/red] {md_file.name} — CLI error: {exc}")
@@ -455,6 +450,43 @@ def check_cmd(
 
 
 # Helpers
+
+
+RAW_OUTPUT_PREVIEW_CHARS = 3000
+
+
+def _report_extraction_failure(exc: ExtractionExhaustedError, output_dir: Path) -> None:
+    """Show why extraction failed AND the raw Copilot CLI output, for debugging.
+
+    Every attempt's full raw response is saved to <output_dir>/_failed/ so
+    nothing is lost even if the terminal truncates the preview.
+    """
+    console.print(
+        Panel(str(exc), title="[red]Extraction Failed[/red]", border_style="red")
+    )
+
+    debug_dir = Path(output_dir) / "_failed"
+    paths = exc.write_debug_files(debug_dir)
+
+    raw = exc.last_raw_response
+    if raw.strip():
+        preview = raw[:RAW_OUTPUT_PREVIEW_CHARS]
+        truncated = len(raw) > RAW_OUTPUT_PREVIEW_CHARS
+        console.print(
+            Panel(
+                preview + ("\n… (truncated)" if truncated else ""),
+                title=f"[yellow]Raw Copilot CLI output — attempt {exc.attempts[-1].attempt}[/yellow]",
+                border_style="yellow",
+            )
+        )
+    else:
+        console.print("[yellow]Copilot CLI returned no output on the final attempt.[/yellow]")
+
+    console.print(
+        f"[dim]Full output from all {len(exc.attempts)} attempt(s) saved to: "
+        + ", ".join(str(p) for p in paths)
+        + "[/dim]"
+    )
 
 
 def _display_harness(report) -> None:

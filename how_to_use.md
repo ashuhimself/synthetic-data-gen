@@ -323,7 +323,7 @@ table, the problem, and the numbers, e.g.
 | What you see | What it means | What to do |
 |---|---|---|
 | `'copilot' not found on PATH` | The AI isn't installed (or not logged in) | Redo Step 2 of setup; then `make setup` to confirm |
-| `Extraction failed after 3 attempts` | The AI couldn't turn your description into valid schemas | Your description is probably ambiguous — add specifics (table names, rough volumes, which value lists) and retry |
+| `Extraction failed after 3 attempts` | The AI couldn't turn your description into valid schemas | The tool now shows you exactly what the AI wrote on its last try, right there in the terminal (in a yellow box), plus saves what it wrote on *every* try to `output/_failed/` so you can look them over. Reading that usually shows why — often the description was ambiguous. Add specifics (table names, rough volumes, which value lists) and retry |
 | `Circular FK dependency detected` | Two tables each claim to depend on the other — impossible to build | Open the named schema files; remove one of the two `fk_ref` lines (a table pointing at *itself*, like employee → manager, is fine and not this error) |
 | A `✗` in the final checklist | The data broke one of your declared rules | Read the row — it names the table and column. Usually fixed by correcting the schema and re-running |
 | `Copilot CLI timed out` | The AI took too long (big document) | Just run the command again; if it persists, split the description into smaller parts |

@@ -58,6 +58,30 @@ class ExtractionExhaustedError(Exception):
             f"Failure trail:\n{trail}"
         )
 
+    @property
+    def last_raw_response(self) -> str:
+        """The raw Copilot CLI output from the final (still-failing) attempt."""
+        return self.attempts[-1].raw_response if self.attempts else ""
+
+    def write_debug_files(self, debug_dir: Path) -> list[Path]:
+        """Write every attempt's raw CLI output to disk for inspection.
+
+        One file per attempt: ``<debug_dir>/<source-stem>.attempt<N>.raw.txt``.
+        Returns the written paths in attempt order.
+        """
+        debug_dir = Path(debug_dir)
+        debug_dir.mkdir(parents=True, exist_ok=True)
+        stem = Path(self.source).stem
+        paths = []
+        for a in self.attempts:
+            path = debug_dir / f"{stem}.attempt{a.attempt}.raw.txt"
+            body = a.raw_response
+            if a.error:
+                body = f"# validation error:\n# {a.error}\n\n{body}"
+            path.write_text(body, encoding="utf-8")
+            paths.append(path)
+        return paths
+
 
 # Extractor
 

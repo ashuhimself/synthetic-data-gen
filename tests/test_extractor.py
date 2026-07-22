@@ -107,6 +107,41 @@ def test_persistent_bad_format_exhausts_retries(tmp_path, source_doc):
     assert "primary_key" in str(exc_info.value)
 
 
+def test_exhausted_error_exposes_last_raw_response(tmp_path, source_doc):
+    fake = make_fake_copilot(tmp_path, [BAD_BUNDLE, BAD_BUNDLE, BAD_BUNDLE])
+    extractor = Extractor(
+        bridge=CopilotBridge(timeout=30, copilot_binary=fake),
+        output_dir=tmp_path / "out",
+    )
+    with pytest.raises(ExtractionExhaustedError) as exc_info:
+        extractor.extract_file(source_doc)
+    exc = exc_info.value
+    assert len(exc.attempts) == 3
+    # The raw CLI output (fenced YAML, unparsed) is available for the final attempt.
+    assert "primary_key" in exc.last_raw_response
+    assert "```yaml" in exc.last_raw_response
+
+
+def test_write_debug_files_saves_every_attempt(tmp_path, source_doc):
+    fake = make_fake_copilot(tmp_path, [BAD_BUNDLE, BAD_BUNDLE, BAD_BUNDLE])
+    extractor = Extractor(
+        bridge=CopilotBridge(timeout=30, copilot_binary=fake),
+        output_dir=tmp_path / "out",
+    )
+    with pytest.raises(ExtractionExhaustedError) as exc_info:
+        extractor.extract_file(source_doc)
+
+    debug_dir = tmp_path / "out" / "_failed"
+    paths = exc_info.value.write_debug_files(debug_dir)
+    assert len(paths) == 3
+    for i, path in enumerate(paths, start=1):
+        assert path.exists()
+        assert path.name == f"requirement.attempt{i}.raw.txt"
+        content = path.read_text()
+        assert "primary_key" in content
+        assert "validation error" in content  # error context prepended
+
+
 def test_legacy_single_table_document_still_accepted(tmp_path, source_doc):
     single = textwrap.dedent("""\
         table_name: customers

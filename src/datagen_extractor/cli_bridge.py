@@ -175,8 +175,6 @@ class CopilotBridge:
             prompt,
             "-s",  # silent: output only the agent response
             "--allow-all-tools",  # prevent interactive permission prompts
-            "--model",
-            "auto",  # let Copilot pick an available model
         ]
 
     # response parsing ----
