@@ -16,7 +16,7 @@ PYTEST     := $(VENV)/bin/pytest
 RUFF       := $(VENV)/bin/ruff
 CLI        := $(VENV)/bin/datagen-extractor
 
-INPUT      ?= input/requirement_sectionA.md
+INPUT      ?= input/requirements.md
 SCHEMA_DIR ?= output
 RUN_DIR    ?= run_output
 ROWS       ?= 150
