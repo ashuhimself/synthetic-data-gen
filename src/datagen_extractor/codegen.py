@@ -5,7 +5,7 @@ review and executed separately.  Model output is never parsed as data and
 never written to the data output directory.  The script contract:
 
     python <script> --schema-dir DIR --out-dir DIR --rows N \
-                    --format csv|json --seed N
+                    --format csv|json|xml|parquet --seed N
 
 Scripts build on the internal ``datagen_core.generators`` library
 (``GenerationExecutor`` + primitives): the library handles all generation
@@ -62,7 +62,7 @@ CODEGEN_PROMPT_TEMPLATE = textwrap.dedent("""\
     2. Imports: standard library plus the two internal modules shown above.
        No other third-party imports.
     3. The script must accept (argparse):
-       --schema-dir DIR  --out-dir DIR  --rows N  --format csv|json  --seed N
+       --schema-dir DIR  --out-dir DIR  --rows N  --format csv|json|xml|parquet  --seed N
        and pass them to the library exactly as in the example.
     4. Use register_override for columns where the schema alone would give
        generic values (lender/agency/party names, model labels, etc.).

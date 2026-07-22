@@ -51,7 +51,8 @@ invocation: `make run SCHEMA_DIR=samples/schemas ROWS=500 FORMAT=json`.
 | `make clean` | Delete run outputs and caches (keeps schemas and venv) |
 
 **Variables** (defaults): `INPUT=input/requirement_sectionA.md`,
-`SCHEMA_DIR=output`, `RUN_DIR=run_output`, `ROWS=150`, `FORMAT=csv`, `SEED=0`.
+`SCHEMA_DIR=output`, `RUN_DIR=run_output`, `ROWS=150`, `FORMAT=csv` (choices:
+`csv`, `json`, `xml`, `parquet`), `SEED=0`.
 
 ### Typical flows
 
@@ -79,7 +80,7 @@ make execute                # 5. run it + integrity checks
 | `output/` (= `SCHEMA_DIR`) | Extracted, validated YAML schemas — **one file per table**, named `<table_name>.yaml`. Editable by hand; re-run `make validate-schema` after editing. ⚠ Extraction is additive: if a new requirements doc produces different table names, stale files from a previous doc remain — delete them before running `make graph`/`run` |
 | `run_output/` (= `RUN_DIR`) | One pipeline run: |
 | `run_output/generated/generate_data.py` | The Copilot-authored generator script (the reviewable C-2 artifact). Scripts are thin: they drive the internal `datagen_core.generators` library (`GenerationExecutor`) from the validated YAML and add domain overrides only. Contract: `--schema-dir --out-dir --rows --format --seed` |
-| `run_output/data/` | The generated data files, `<table_name>.csv` or `.json` (UTF-8) |
+| `run_output/data/` | The generated data files, `<table_name>.<fmt>` — format is user-selected at run time: **csv, json, xml, or parquet** (UTF-8; Parquet needs `pip install "datagen-extractor[parquet]"`, already included in dev installs). Files only — direct DB/warehouse load is not supported (§8/§9) |
 | `samples/schemas/` | Ready-made 4-table demo schema set exercising every YAML feature |
 | `tests/` | Pytest suite (runs fully offline) |
 
@@ -240,7 +241,7 @@ executor.register_override(                            # domain flavor only
     "accounts", "branch_code", lambda rng, row, idx: rng.choice(["BR-01", "BR-02"])
 )
 data = executor.generate(base_rows=150)                # dict[table, list[row]]
-executor.write(data, "out_dir", "csv")                 # one UTF-8 file per table
+executor.write(data, "out_dir", "csv")                 # csv | json | xml | parquet
 ```
 
 The executor honors everything declared in YAML: topological order, FK

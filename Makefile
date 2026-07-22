@@ -7,7 +7,7 @@
 #   SCHEMA_DIR  where extracted/validated YAML schemas live
 #   RUN_DIR     where a pipeline run writes its script + data
 #   ROWS        base row count for root tables
-#   FORMAT      output data format: csv | json
+#   FORMAT      output data format: csv | json | xml | parquet
 #   SEED        random seed passed to the generated script
 
 VENV       := .venv

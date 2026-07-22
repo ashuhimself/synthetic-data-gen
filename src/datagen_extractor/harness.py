@@ -25,6 +25,7 @@ import csv
 import json
 import logging
 import unicodedata
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -75,8 +76,15 @@ class HarnessReport:
         return [r for r in self.results if not r.passed]
 
 
-def _load_rows(path: Path) -> list[dict]:
-    """Load a table file into a list of row dicts with string/None values."""
+DATA_FILE_EXTENSIONS = (".csv", ".json", ".xml", ".parquet")
+
+
+def _load_rows(path: Path, columns: list[str]) -> list[dict]:
+    """Load a table file into a list of row dicts with string/None values.
+
+    ``columns`` is the schema's column list — needed for XML, where a NULL
+    column is represented by an absent element.
+    """
     if path.suffix == ".csv":
         with path.open(newline="", encoding="utf-8") as fh:
             return [
@@ -85,11 +93,28 @@ def _load_rows(path: Path) -> list[dict]:
     if path.suffix == ".json":
         rows = json.loads(path.read_text(encoding="utf-8"))
         return [{k: (None if v is None else str(v)) for k, v in row.items()} for row in rows]
+    if path.suffix == ".xml":
+        root = ET.parse(path).getroot()
+        out = []
+        for row_el in root.findall("row"):
+            present = {child.tag: (child.text or "") for child in row_el}
+            out.append({c: present.get(c) for c in columns})
+        return out
+    if path.suffix == ".parquet":
+        try:
+            import pyarrow.parquet as pq
+        except ImportError as exc:
+            raise ValueError(
+                "Reading Parquet requires the optional 'pyarrow' dependency — "
+                "install with: pip install 'datagen-extractor[parquet]'"
+            ) from exc
+        rows = pq.read_table(path).to_pylist()
+        return [{k: (None if v is None else str(v)) for k, v in row.items()} for row in rows]
     raise ValueError(f"Unsupported data file format: {path.suffix}")
 
 
 def _find_table_file(data_dir: Path, table: str) -> Path | None:
-    for ext in (".csv", ".json"):
+    for ext in DATA_FILE_EXTENSIONS:
         candidate = data_dir / f"{table}{ext}"
         if candidate.exists():
             return candidate
@@ -107,11 +132,12 @@ def run_checks(graph: SchemaGraph, data_dir: Path) -> HarnessReport:
         path = _find_table_file(data_dir, table)
         if path is None:
             results.append(
-                CheckResult(table, "file_present", False, f"no {table}.csv/.json in {data_dir}")
+                CheckResult(table, "file_present", False, f"no {table}.(csv|json|xml|parquet) in {data_dir}")
             )
             continue
         try:
-            tables[table] = _load_rows(path)
+            columns = [f.name for f in graph.schemas[table].fields]
+            tables[table] = _load_rows(path, columns)
             results.append(CheckResult(table, "file_present", True, f"{len(tables[table])} rows"))
         except (ValueError, json.JSONDecodeError, csv.Error) as exc:
             results.append(CheckResult(table, "file_present", False, f"load error: {exc}"))

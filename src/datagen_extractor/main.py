@@ -322,7 +322,7 @@ def generate_cmd(
         Path("run_output"), "--out", help="Run output directory (script + data)."
     ),
     rows: int = typer.Option(100, "--rows", help="Base row count for root tables."),
-    fmt: str = typer.Option("csv", "--format", help="Output format: csv or json."),
+    fmt: str = typer.Option("csv", "--format", help="Output format: csv, json, xml, or parquet."),
     seed: int = typer.Option(0, "--seed", help="Random seed passed to the generated script."),
     stop_after: str = typer.Option(
         None, "--stop-after", help="Manual intercept: 'plan' or 'code'."
@@ -337,8 +337,8 @@ def generate_cmd(
     """Run the pipeline: plan → generate code → execute → integrity checks."""
     _setup_logging(verbose)
 
-    if fmt not in ("csv", "json"):
-        console.print("[red]Error:[/red] --format must be csv or json")
+    if fmt not in ("csv", "json", "xml", "parquet"):
+        console.print("[red]Error:[/red] --format must be csv, json, xml, or parquet")
         raise typer.Exit(code=1)
     if stop_after not in (None, "plan", "code"):
         console.print("[red]Error:[/red] --stop-after must be 'plan' or 'code'")

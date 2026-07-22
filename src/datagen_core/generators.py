@@ -25,6 +25,7 @@ import json
 import logging
 import random
 import uuid as uuid_mod
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any, Callable
 
@@ -33,6 +34,9 @@ from datagen_extractor.graph import FKEdge, SchemaGraph
 from datagen_extractor.schema import Field
 
 logger = logging.getLogger(__name__)
+
+# Output formats per requirements §8 — files only, user-selected at run time.
+OUTPUT_FORMATS: frozenset[str] = frozenset({"csv", "json", "xml", "parquet"})
 
 DEFAULT_CHILDREN_PER_PARENT = 3
 DEFAULT_DATE_MIN = dt.date(2000, 1, 1)
@@ -430,7 +434,14 @@ class GenerationExecutor:
     # output ----
 
     def write(self, data: dict[str, list[dict]], out_dir: Path, fmt: str = "csv") -> None:
-        """Write one UTF-8 file per table: <table>.<fmt> (csv or json)."""
+        """Write one UTF-8 file per table: <table>.<fmt>.
+
+        Formats (requirements §8): csv | json | xml | parquet.
+        Parquet needs the optional ``pyarrow`` dependency
+        (``pip install "datagen-extractor[parquet]"``).
+        """
+        if fmt not in OUTPUT_FORMATS:
+            raise ValueError(f"Unsupported format '{fmt}' — choose one of {sorted(OUTPUT_FORMATS)}")
         out_dir = Path(out_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
         for table, rows in data.items():
@@ -450,6 +461,35 @@ class GenerationExecutor:
                                ensure_ascii=False, indent=2),
                     encoding="utf-8",
                 )
-            else:
-                raise ValueError(f"Unsupported format: {fmt}")
+            elif fmt == "xml":
+                _write_xml(path, table, columns, rows)
+            elif fmt == "parquet":
+                _write_parquet(path, columns, rows)
             logger.info("wrote %s (%d rows)", path, len(rows))
+
+
+def _write_xml(path: Path, table: str, columns: list[str], rows: list[dict]) -> None:
+    """<table><row><col>value</col>…</row>…</table>; NULL columns are omitted."""
+    root = ET.Element(table)
+    for row in rows:
+        row_el = ET.SubElement(root, "row")
+        for col in columns:
+            value = row.get(col)
+            if value is None:
+                continue
+            ET.SubElement(row_el, col).text = str(value)
+    ET.indent(root)
+    ET.ElementTree(root).write(path, encoding="utf-8", xml_declaration=True)
+
+
+def _write_parquet(path: Path, columns: list[str], rows: list[dict]) -> None:
+    try:
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+    except ImportError as exc:
+        raise ValueError(
+            "Parquet output requires the optional 'pyarrow' dependency — "
+            "install with: pip install 'datagen-extractor[parquet]'"
+        ) from exc
+    table = pa.table({c: [row.get(c) for row in rows] for c in columns})
+    pq.write_table(table, path)
